@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Clock, ShieldCheck, ArrowRight, TrendingUp, Zap, Heart } from 'lucide-react';
+import { Flame, Clock, ShieldCheck, ArrowRight, TrendingUp, Zap, Heart, Sparkles } from 'lucide-react';
 
-export default function HeroFeatured({ auction, onSelectAuction, onQuickBid, isWatchlisted, onToggleWatchlist }) {
+export default function HeroFeatured({
+  auction,
+  onSelectAuction,
+  onQuickBid,
+  isWatchlisted,
+  onToggleWatchlist,
+  onOpenLiveHall
+}) {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
@@ -30,6 +37,7 @@ export default function HeroFeatured({ auction, onSelectAuction, onQuickBid, isW
   return (
     <section className="py-8">
       <div className="glass-panel overflow-hidden relative border-amber-500/20 shadow-2xl shadow-amber-500/5">
+        
         {/* Ambient Top Glow */}
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-amber-500/10 rounded-full filter blur-3xl pointer-events-none"></div>
         
@@ -107,62 +115,59 @@ export default function HeroFeatured({ auction, onSelectAuction, onQuickBid, isW
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                onClick={() => onOpenLiveHall(auction)}
+                className="btn-primary text-sm py-3 px-5 flex items-center gap-2 shadow-lg shadow-amber-500/25 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black animate-pulse"
+              >
+                <Sparkles className="w-4 h-4 fill-slate-950" />
+                <span>🔴 Vào Khán Phòng Trực Tiếp 3D</span>
+              </button>
+
               <button
                 onClick={() => onQuickBid(auction.id, auction.currentBid + auction.bidIncrement)}
-                className="btn-primary flex-1 sm:flex-none text-base py-3 px-6"
+                className="btn-secondary text-sm py-3 px-4 font-bold"
               >
-                <Zap className="w-5 h-5 fill-slate-950" />
-                Đặt Giá Tối Thiểu +${auction.bidIncrement.toLocaleString()}
+                Gửi Đặt Giá +${auction.bidIncrement.toLocaleString()}
               </button>
 
               <button
                 onClick={() => onSelectAuction(auction)}
-                className="btn-secondary flex-1 sm:flex-none text-base py-3 px-6"
+                className="btn-secondary text-sm py-3 px-4 font-bold"
               >
-                Chi Tiết Phân Đấu Giá
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => onToggleWatchlist(auction.id)}
-                className={`p-3 rounded-xl border transition-all ${
-                  isWatchlisted
-                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
-                }`}
-                title="Lưu vào theo dõi"
-              >
-                <Heart className={`w-5 h-5 ${isWatchlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
+                Chi Tiết & Specs →
               </button>
             </div>
 
           </div>
 
-          {/* Right Column: High-Res Image Preview */}
+          {/* Right Column: Hero Image Showcase */}
           <div className="lg:col-span-5 relative group">
-            <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black/40 aspect-[4/3] lg:aspect-square">
+            <div className="relative aspect-square sm:aspect-4/3 lg:aspect-square rounded-2xl overflow-hidden border border-white/15 bg-[#101623] shadow-2xl">
               <img
                 src={auction.image}
                 alt={auction.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f17] via-transparent to-transparent opacity-80"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f17] via-transparent to-transparent opacity-80" />
               
-              {/* Seller Verification Floating Tag */}
-              <div className="absolute bottom-4 left-4 right-4 bg-[#151d2a]/90 backdrop-blur-md p-3 rounded-xl border border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white leading-tight">{auction.seller.name}</h4>
-                    <p className="text-[10px] text-gray-400">Verified Partner • ★ {auction.seller.rating}</p>
-                  </div>
+              <button
+                onClick={() => onToggleWatchlist(auction.id)}
+                className={`absolute top-4 right-4 p-3 rounded-2xl backdrop-blur-md border transition-all ${
+                  isWatchlisted
+                    ? 'bg-rose-500/30 border-rose-500/60 text-rose-400'
+                    : 'bg-black/40 border-white/20 text-gray-300 hover:text-white'
+                }`}
+              >
+                <Heart className={`w-5 h-5 ${isWatchlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
+              </button>
+
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-gray-300 bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Bảo chứng bởi <strong>{auction.seller?.name}</strong></span>
                 </div>
-                <span className="text-[11px] text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-md">
-                  Chính Hãng
-                </span>
+                <span className="text-amber-400 font-bold">Giám định 100%</span>
               </div>
             </div>
           </div>

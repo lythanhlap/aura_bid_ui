@@ -5,6 +5,7 @@ export default function Navbar({
   searchQuery,
   setSearchQuery,
   user,
+  pendingRequestsCount = 0,
   onOpenCreateModal,
   onOpenDashboardModal,
   unreadNotificationCount,
@@ -82,7 +83,7 @@ export default function Navbar({
                   <span className="hidden sm:inline">Tạo Đấu Giá</span>
                 </button>
 
-                {/* Admin Quick Button (If Admin) */}
+                {/* Admin Quick Button (If Admin) with Pending Requests Badge */}
                 {isAdmin && (
                   <button
                     onClick={onOpenAdminModal}
@@ -90,6 +91,11 @@ export default function Navbar({
                     title="Bảng Quản Trị Admin"
                   >
                     <ShieldAlert className="w-5 h-5" />
+                    {pendingRequestsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                        {pendingRequestsCount}
+                      </span>
+                    )}
                   </button>
                 )}
 
@@ -145,10 +151,17 @@ export default function Navbar({
                       {isAdmin && (
                         <button
                           onClick={onOpenAdminModal}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-rose-500/20 text-xs font-bold text-rose-400 text-left transition-colors"
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-rose-500/20 text-xs font-bold text-rose-400 text-left transition-colors justify-between"
                         >
-                          <ShieldAlert className="w-4 h-4 text-rose-400" />
-                          Quản Trị Admin
+                          <span className="flex items-center gap-2.5">
+                            <ShieldAlert className="w-4 h-4 text-rose-400" />
+                            Quản Trị Admin
+                          </span>
+                          {pendingRequestsCount > 0 && (
+                            <span className="bg-amber-400 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full">
+                              {pendingRequestsCount} mới
+                            </span>
+                          )}
                         </button>
                       )}
 
@@ -174,7 +187,7 @@ export default function Navbar({
                 </div>
               </>
             ) : (
-              /* GUEST MODE: LOGIN / REGISTER BUTTON */
+              /* GUEST MODE */
               <button
                 onClick={() => onOpenAuthModal('login')}
                 className="btn-primary text-sm py-2.5 px-5 flex items-center gap-2 shadow-lg shadow-amber-500/20"

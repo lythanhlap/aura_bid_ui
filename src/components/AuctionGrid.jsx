@@ -24,7 +24,8 @@ export default function AuctionGrid({
   onSelectAuction,
   onQuickBid,
   watchlist,
-  onToggleWatchlist
+  onToggleWatchlist,
+  onOpenLiveHall
 }) {
   return (
     <section className="py-8 space-y-6">
@@ -59,44 +60,37 @@ export default function AuctionGrid({
         <div className="flex items-center gap-1 bg-[#0b0f17] p-1 rounded-xl border border-white/5">
           <button
             onClick={() => setActiveStatus('live')}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeStatus === 'live'
-                ? 'bg-amber-500 text-slate-950 shadow'
-                : 'text-gray-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              activeStatus === 'live' ? 'bg-amber-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'
             }`}
           >
             Đang Diễn Ra (LIVE)
           </button>
           <button
             onClick={() => setActiveStatus('upcoming')}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeStatus === 'upcoming'
-                ? 'bg-amber-500 text-slate-950 shadow'
-                : 'text-gray-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              activeStatus === 'upcoming' ? 'bg-amber-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'
             }`}
           >
-            Sắp Ra Mắt
+            Sắp Diễn Ra
           </button>
           <button
             onClick={() => setActiveStatus('watchlist')}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeStatus === 'watchlist'
-                ? 'bg-amber-500 text-slate-950 shadow'
-                : 'text-gray-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              activeStatus === 'watchlist' ? 'bg-amber-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'
             }`}
           >
-            Đã Lưu ({watchlist.length})
+            Đã Lưu Theo Dõi ({watchlist.length})
           </button>
         </div>
 
-        {/* Sorting Selection Dropdown */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <ArrowUpDown className="w-4 h-4 text-amber-400" />
-          <span className="text-xs text-gray-400 font-medium">Sắp xếp:</span>
+        {/* Sorting Dropdown */}
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="w-4 h-4 text-gray-400" />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="bg-[#0b0f17] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+            className="bg-[#0b0f17] border border-white/10 text-xs font-semibold text-white rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 cursor-pointer"
           >
             <option value="endingSoon">Kết thúc sớm nhất</option>
             <option value="highestBid">Giá hiện tại cao nhất</option>
@@ -124,6 +118,7 @@ export default function AuctionGrid({
               onQuickBid={onQuickBid}
               isWatchlisted={watchlist.includes(auction.id)}
               onToggleWatchlist={onToggleWatchlist}
+              onOpenLiveHall={onOpenLiveHall}
             />
           ))}
         </div>

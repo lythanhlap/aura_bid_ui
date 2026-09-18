@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, TrendingUp, Zap, Heart, ShieldCheck, Flame } from 'lucide-react';
+import { Clock, TrendingUp, Zap, Heart, ShieldCheck, Flame, Sparkles } from 'lucide-react';
 
-export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWatchlisted, onToggleWatchlist }) {
+export default function AuctionCard({
+  auction,
+  onSelectAuction,
+  onQuickBid,
+  isWatchlisted,
+  onToggleWatchlist,
+  onOpenLiveHall
+}) {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, isUrgent: false, isEnded: false });
 
   useEffect(() => {
@@ -17,7 +24,7 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
       const hours = Math.floor(diff / (1000 * 3600));
       const minutes = Math.floor((diff % (1000 * 3600)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      const isUrgent = diff < 15 * 60 * 1000; // Urgent if under 15 minutes
+      const isUrgent = diff < 15 * 60 * 1000;
 
       setTimeLeft({ hours, minutes, seconds, isUrgent, isEnded: false });
     };
@@ -26,8 +33,6 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [auction.endTime]);
-
-  const topBidder = auction.bids[0];
 
   return (
     <div className="glass-panel glass-panel-hover flex flex-col justify-between overflow-hidden group border border-white/10 hover:border-amber-500/40 relative">
@@ -81,11 +86,24 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
           </button>
         </div>
 
-        {/* Category Pill */}
-        <div className="absolute bottom-3 left-3">
+        {/* Category Pill & Live Hall Shortcut */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
           <span className="bg-[#0b0f17]/80 backdrop-blur-md border border-white/10 text-gray-300 text-[11px] font-medium px-2.5 py-1 rounded-lg">
             {auction.categoryName}
           </span>
+
+          {auction.status === 'live' && !timeLeft.isEnded && onOpenLiveHall && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenLiveHall(auction);
+              }}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-lg transition-transform hover:scale-105"
+            >
+              <Sparkles className="w-3 h-3 fill-slate-950" />
+              <span>Khán Phòng 3D</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -105,7 +123,7 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
           <div className="flex items-center justify-between text-xs text-gray-400">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              {auction.seller.name}
+              {auction.seller?.name}
             </span>
             <span>{auction.totalBids} lượt trả giá</span>
           </div>
@@ -120,13 +138,13 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
               Giá Hiện Tại
             </span>
             <span className="text-[11px] text-gray-400">
-              Khởi điểm: ${auction.startingBid.toLocaleString()}
+              Khởi điểm: ${auction.startingBid?.toLocaleString()}
             </span>
           </div>
 
           <div className="flex items-baseline justify-between">
             <div className="text-xl font-extrabold text-amber-400 number-tabular">
-              ${auction.currentBid.toLocaleString()}
+              ${auction.currentBid?.toLocaleString()}
             </div>
             
             {/* Countdown Badge */}
@@ -154,7 +172,7 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
             onClick={() => onSelectAuction(auction)}
             className="btn-secondary flex-1 text-xs py-2 px-3"
           >
-            Xem Chi Tiết
+            Chi Tiết
           </button>
 
           <button
@@ -163,10 +181,10 @@ export default function AuctionCard({ auction, onSelectAuction, onQuickBid, isWa
             className={`btn-primary text-xs py-2 px-3 flex items-center gap-1.5 ${
               timeLeft.isEnded ? 'opacity-50 cursor-not-allowed filter grayscale' : ''
             }`}
-            title={timeLeft.isEnded ? 'Phiên đấu giá đã kết thúc' : `Đặt thêm $${auction.bidIncrement.toLocaleString()}`}
+            title={timeLeft.isEnded ? 'Phiên đấu giá đã kết thúc' : `Đề xuất giá $${(auction.currentBid + auction.bidIncrement).toLocaleString()}`}
           >
             <Zap className="w-3.5 h-3.5 fill-slate-950" />
-            {timeLeft.isEnded ? 'Hết Giờ' : `+$${auction.bidIncrement >= 1000 ? `${auction.bidIncrement / 1000}k` : auction.bidIncrement}`}
+            {timeLeft.isEnded ? 'Hết Giờ' : `Gửi Yêu Cầu +$${auction.bidIncrement >= 1000 ? `${auction.bidIncrement / 1000}k` : auction.bidIncrement}`}
           </button>
         </div>
 
