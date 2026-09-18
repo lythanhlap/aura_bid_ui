@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Wallet, ShieldCheck, Trophy, Heart, Gavel, PlusCircle, CheckCircle, AlertTriangle, LogOut, Settings, DollarSign, Edit, User, Mail, Sparkles, ShieldAlert } from 'lucide-react';
+import { X, Wallet, ShieldCheck, Trophy, Heart, Gavel, PlusCircle, CheckCircle, AlertTriangle, LogOut, Settings, DollarSign, Edit, User, Mail, Sparkles, ShieldAlert, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function UserDashboardModal({
   onClose,
@@ -7,6 +7,7 @@ export default function UserDashboardModal({
   auctions = [],
   watchlist = [],
   transactions = [],
+  bidRequests = [],
   onOpenDepositModal,
   onSelectAuction,
   onLogout,
@@ -14,7 +15,7 @@ export default function UserDashboardModal({
   onUpdateProfile,
   addToast
 }) {
-  const [activeTab, setActiveTab] = useState('bids'); // 'bids' | 'won' | 'watchlist' | 'listings' | 'transactions' | 'settings'
+  const [activeTab, setActiveTab] = useState('my_requests'); // 'my_requests' | 'bids' | 'won' | 'watchlist' | 'listings' | 'transactions' | 'settings'
 
   // Settings form state
   const [editName, setEditName] = useState(user?.name || '');
@@ -23,9 +24,12 @@ export default function UserDashboardModal({
 
   if (!user) return null;
 
+  // Filter bid requests of current user
+  const myBidRequests = bidRequests.filter(r => r.userId === user.id || r.userName === user.name);
+
   // Find auctions where user has placed a bid
   const userBiddedAuctions = auctions.filter(auc =>
-    auc.bids.some(b => b.bidder === user.name)
+    auc.bids.some(b => b.bidder === user.name || b.bidder.includes(user.name))
   );
 
   // Find watchlisted auctions
@@ -36,7 +40,7 @@ export default function UserDashboardModal({
 
   // Find auctions won by user
   const wonAuctions = auctions.filter(auc =>
-    auc.endTime <= Date.now() && auc.bids[0]?.bidder === user.name
+    auc.endTime <= Date.now() && auc.bids[0]?.bidder.includes(user.name)
   );
 
   // Filter transactions for current user
@@ -137,6 +141,18 @@ export default function UserDashboardModal({
           {/* Navigation Tabs */}
           <div className="flex items-center gap-1 border-b border-white/10 pb-2 overflow-x-auto">
             <button
+              onClick={() => setActiveTab('my_requests')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === 'my_requests'
+                  ? 'bg-amber-500 text-slate-950 shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Yêu Cầu Đấu Giá ({myBidRequests.length})
+            </button>
+
+            <button
               onClick={() => setActiveTab('bids')}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeTab === 'bids'
@@ -212,11 +228,62 @@ export default function UserDashboardModal({
           {/* TAB CONTENTS */}
           <div className="space-y-3 min-h-[240px] max-h-80 overflow-y-auto pr-1">
             
+            {/* TAB MY BID REQUESTS */}
+            {activeTab === 'my_requests' && (
+              myBidRequests.length > 0 ? (
+                <div className="space-y-2">
+                  {myBidRequests.map(req => {
+                    const isPending = req.status === 'pending';
+                    const isApproved = req.status === 'approved';
+                    const isRejected = req.status === 'rejected';
+
+                    return (
+                      <div key={req.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#101623] border border-white/10 text-xs">
+                        <div className="flex items-center gap-3">
+                          <img src={req.auctionImage} alt={req.auctionTitle} className="w-10 h-10 rounded-lg object-cover" />
+                          <div>
+                            <h4 className="font-bold text-white line-clamp-1">{req.auctionTitle}</h4>
+                            <span className="text-[11px] text-gray-400">Mức đề xuất: <strong className="text-amber-400">${req.proposedAmount.toLocaleString()}</strong></span>
+                            <span className="text-[10px] text-gray-500 block">{req.createdAt}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isPending && (
+                            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                              <Clock className="w-3 h-3 animate-spin" />
+                              CHỜ ADMIN DUYỆT
+                            </span>
+                          )}
+                          {isApproved && (
+                            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              ĐÃ DUYỆT (ADMIN BID)
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                              <XCircle className="w-3 h-3" />
+                              TỪ CHỐI
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-xs text-gray-400">
+                  Bạn chưa gửi yêu cầu trả giá nào tới Admin.
+                </div>
+              )
+            )}
+
             {/* TAB BIDS */}
             {activeTab === 'bids' && (
               userBiddedAuctions.length > 0 ? (
                 userBiddedAuctions.map(auc => {
-                  const isTopBidder = auc.bids[0]?.bidder === user.name;
+                  const isTopBidder = auc.bids[0]?.bidder.includes(user.name);
                   return (
                     <div
                       key={auc.id}

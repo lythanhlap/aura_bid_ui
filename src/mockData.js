@@ -312,11 +312,29 @@ export const INITIAL_TRANSACTIONS = [
   }
 ];
 
+export const INITIAL_BID_REQUESTS = [
+  {
+    id: "req-1",
+    auctionId: "auc-1",
+    auctionTitle: "Patek Philippe Grandmaster Chime 6300G White Gold",
+    auctionImage: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=1000",
+    userId: "usr-2",
+    userName: "Elena Rostova",
+    userAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=250",
+    proposedAmount: 3500000,
+    currentBidAtRequest: 3450000,
+    status: "pending", // pending, approved, rejected
+    createdAt: new Date(Date.now() - 10 * 60 * 1000).toLocaleString('vi-VN'),
+    note: "Ủy quyền Admin đặt giá giúp mẫu Patek Philippe 6300G 18K."
+  }
+];
+
 const KEYS = {
   USERS: 'aurabid_users',
   CURRENT_USER: 'aurabid_current_user',
   AUCTIONS: 'aurabid_auctions',
-  TRANSACTIONS: 'aurabid_txs'
+  TRANSACTIONS: 'aurabid_txs',
+  BID_REQUESTS: 'aurabid_bid_reqs'
 };
 
 export const getStoredUsers = () => {
@@ -390,4 +408,22 @@ export const saveStoredTransactions = (txs) => {
     console.error("Failed to save transactions", e);
   }
 };
+
+export const getStoredBidRequests = () => {
+  try {
+    const data = localStorage.getItem(KEYS.BID_REQUESTS);
+    return data ? JSON.parse(data) : INITIAL_BID_REQUESTS;
+  } catch {
+    return INITIAL_BID_REQUESTS;
+  }
+};
+
+export const saveStoredBidRequests = (requests) => {
+  try {
+    localStorage.setItem(KEYS.BID_REQUESTS, JSON.stringify(requests));
+  } catch (e) {
+    console.error("Failed to save bid requests", e);
+  }
+};
+
 

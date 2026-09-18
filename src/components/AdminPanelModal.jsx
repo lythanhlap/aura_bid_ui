@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
-import { X, Users, Gavel, ShieldCheck, DollarSign, PlusCircle, Lock, Unlock, Check, AlertCircle, Edit, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, BarChart2 } from 'lucide-react';
+import { X, Users, Gavel, ShieldCheck, DollarSign, PlusCircle, Lock, Unlock, Check, AlertCircle, Edit, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, BarChart2, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function AdminPanelModal({
   onClose,
   users = [],
   auctions = [],
   transactions = [],
+  bidRequests = [],
   onUpdateUserRole,
   onUpdateUserBalance,
   onToggleUserStatus,
   onToggleUserKyc,
   onDeleteAuction,
   onEndAuctionEarly,
+  onApproveBidRequest,
+  onRejectBidRequest,
   addToast
 }) {
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'auctions' | 'transactions'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'users' | 'auctions' | 'transactions'
   const [userSearch, setUserSearch] = useState('');
   const [balanceInputUser, setBalanceInputUser] = useState(null);
   const [customBalanceAmount, setCustomBalanceAmount] = useState('');
@@ -24,6 +27,7 @@ export default function AdminPanelModal({
   const activeAuctionsCount = auctions.filter(a => a.status === 'live').length;
   const totalVolume = auctions.reduce((sum, a) => sum + (a.currentBid || 0), 0);
   const platformRevenue = Math.round(totalVolume * 0.05); // 5% fee
+  const pendingRequestsCount = bidRequests.filter(r => r.status === 'pending').length;
 
   // Filtered users
   const filteredUsers = users.filter(u =>
@@ -71,7 +75,7 @@ export default function AdminPanelModal({
                     Control Center
                   </span>
                 </div>
-                <p className="text-xs text-gray-400">Quản lý người dùng, phân quyền, số dư ví và giám sát các phiên đấu giá.</p>
+                <p className="text-xs text-gray-400">Phê duyệt yêu cầu đấu giá đại diện, quản lý người dùng, phân quyền và số dư ví.</p>
               </div>
             </div>
 
@@ -79,7 +83,14 @@ export default function AdminPanelModal({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="p-4 rounded-xl bg-[#101623] border border-white/10 space-y-1">
                 <span className="text-[11px] text-gray-400 font-semibold uppercase flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5 text-amber-400" /> Tổng Người Dùng
+                  <Clock className="w-3.5 h-3.5 text-amber-400" /> Yêu Cầu Chờ Duyệt
+                </span>
+                <span className="text-2xl font-black text-amber-400 font-heading">{pendingRequestsCount}</span>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#101623] border border-white/10 space-y-1">
+                <span className="text-[11px] text-gray-400 font-semibold uppercase flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-cyan-400" /> Tổng Người Dùng
                 </span>
                 <span className="text-2xl font-black text-white font-heading">{totalUsers}</span>
               </div>
@@ -93,16 +104,7 @@ export default function AdminPanelModal({
 
               <div className="p-4 rounded-xl bg-[#101623] border border-white/10 space-y-1">
                 <span className="text-[11px] text-gray-400 font-semibold uppercase flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 text-cyan-400" /> Tổng Đấu Giá ($)
-                </span>
-                <span className="text-xl font-black text-cyan-400 number-tabular font-heading">
-                  ${(totalVolume / 1000000).toFixed(2)}M
-                </span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[#101623] border border-white/10 space-y-1">
-                <span className="text-[11px] text-gray-400 font-semibold uppercase flex items-center gap-1">
-                  <BarChart2 className="w-3.5 h-3.5 text-amber-400" /> Doanh Thu Sàn (5%)
+                  <BarChart2 className="w-3.5 h-3.5 text-rose-400" /> Doanh Thu Sàn (5%)
                 </span>
                 <span className="text-xl font-black text-amber-400 number-tabular font-heading">
                   ${(platformRevenue / 1000).toFixed(0)}k
@@ -112,10 +114,25 @@ export default function AdminPanelModal({
           </div>
 
           {/* Admin Tabs */}
-          <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+          <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all relative whitespace-nowrap ${
+                activeTab === 'requests'
+                  ? 'bg-rose-500 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Duyệt Đấu Giá Đại Diện ({pendingRequestsCount})
+              {pendingRequestsCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              )}
+            </button>
+
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeTab === 'users'
                   ? 'bg-rose-500 text-white shadow'
                   : 'text-gray-400 hover:text-white'
@@ -127,7 +144,7 @@ export default function AdminPanelModal({
 
             <button
               onClick={() => setActiveTab('auctions')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeTab === 'auctions'
                   ? 'bg-rose-500 text-white shadow'
                   : 'text-gray-400 hover:text-white'
@@ -139,21 +156,146 @@ export default function AdminPanelModal({
 
             <button
               onClick={() => setActiveTab('transactions')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeTab === 'transactions'
                   ? 'bg-rose-500 text-white shadow'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <DollarSign className="w-4 h-4" />
-              Nhật Ký Giao Dịch Ví ({transactions.length})
+              Nhật Ký Giao Dịch ({transactions.length})
             </button>
           </div>
+
+          {/* TAB 0: BID REQUESTS APPROVAL (NEW CORE FEATURE) */}
+          {activeTab === 'requests' && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-400">
+                Theo quy định sàn AuraBid, thành viên phải gửi yêu cầu trả giá đến Admin. Sau khi Admin thẩm định số dư và chấp nhận, lượt đặt giá mới chính thức phát hành công khai dưới danh tính Admin Đại Diện.
+              </p>
+
+              <div className="overflow-x-auto rounded-xl border border-white/10">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-[#101623] border-b border-white/10 text-gray-400 uppercase font-semibold text-[10px]">
+                      <th className="p-3">Người Gửi Yêu Cầu</th>
+                      <th className="p-3">Sản Phẩm Đấu Giá</th>
+                      <th className="p-3">Giá Đề Xuất ($)</th>
+                      <th className="p-3">Ghi Chú</th>
+                      <th className="p-3">Trạng Thái</th>
+                      <th className="p-3 text-right">Phê Duyệt Đấu Giá</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 bg-[#0b0f17]">
+                    {bidRequests.length > 0 ? (
+                      bidRequests.map((req) => {
+                        const isPending = req.status === 'pending';
+                        const isApproved = req.status === 'approved';
+                        const isRejected = req.status === 'rejected';
+
+                        return (
+                          <tr key={req.id} className="hover:bg-[#121927] transition-colors">
+                            {/* User */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-2.5">
+                                <img src={req.userAvatar} alt={req.userName} className="w-8 h-8 rounded-lg object-cover ring-1 ring-amber-400/40" />
+                                <div>
+                                  <span className="font-bold text-white block">{req.userName}</span>
+                                  <span className="text-[10px] text-gray-400 block">{req.createdAt}</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Auction */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-2 max-w-xs">
+                                <img src={req.auctionImage} alt={req.auctionTitle} className="w-8 h-8 rounded object-cover" />
+                                <span className="font-semibold text-gray-200 truncate">{req.auctionTitle}</span>
+                              </div>
+                            </td>
+
+                            {/* Amount */}
+                            <td className="p-3">
+                              <span className="font-black text-amber-400 text-sm number-tabular">
+                                ${req.proposedAmount.toLocaleString()}
+                              </span>
+                              <span className="text-[10px] text-gray-500 block">Hiện tại: ${req.currentBidAtRequest?.toLocaleString()}</span>
+                            </td>
+
+                            {/* Note */}
+                            <td className="p-3 text-gray-300 max-w-xs truncate">{req.note || 'Không có ghi chú'}</td>
+
+                            {/* Status */}
+                            <td className="p-3">
+                              {isPending && (
+                                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                                  <Clock className="w-3 h-3 animate-spin" />
+                                  CHỜ ADMIN
+                                </span>
+                              )}
+                              {isApproved && (
+                                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  ĐÃ DUYỆT (ADMIN BID)
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                                  <XCircle className="w-3 h-3" />
+                                  TỪ CHỐI
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Action Buttons */}
+                            <td className="p-3 text-right">
+                              {isPending ? (
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => {
+                                      onApproveBidRequest(req.id);
+                                      addToast('Đã Duyệt Đấu Giá Đại Diện!', `Đã phát hành lượt đặt giá $${req.proposedAmount.toLocaleString()} dưới danh tính Admin đại diện cho ${req.userName}`, 'success');
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow flex items-center gap-1 transition-all"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    Duyệt & Đặt Giá Admin
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      onRejectBidRequest(req.id);
+                                      addToast('Đã Từ Chối Yêu Cầu', `Từ chối yêu cầu đấu giá từ ${req.userName}`, 'warning');
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-semibold text-xs border border-rose-500/30 transition-all"
+                                  >
+                                    Từ Chối
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-gray-500 italic">Đã hoàn tất xử lý</span>
+                              )}
+                            </td>
+
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="text-center py-10 text-gray-400 text-xs">
+                          Hiện không có yêu cầu đấu giá nào chờ duyệt.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: USERS MANAGEMENT TABLE */}
           {activeTab === 'users' && (
             <div className="space-y-4">
-              {/* Search Bar */}
               <div className="flex items-center justify-between gap-4">
                 <input
                   type="text"
@@ -165,7 +307,6 @@ export default function AdminPanelModal({
                 <span className="text-xs text-gray-400">Hiển thị {filteredUsers.length} tài khoản</span>
               </div>
 
-              {/* Table */}
               <div className="overflow-x-auto rounded-xl border border-white/10">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
@@ -183,8 +324,6 @@ export default function AdminPanelModal({
                       const isBanned = u.status === 'banned';
                       return (
                         <tr key={u.id} className="hover:bg-[#121927] transition-colors">
-                          
-                          {/* User info */}
                           <td className="p-3">
                             <div className="flex items-center gap-3">
                               <img src={u.avatar} alt={u.name} className="w-9 h-9 rounded-xl object-cover ring-1 ring-white/10" />
@@ -195,7 +334,6 @@ export default function AdminPanelModal({
                             </div>
                           </td>
 
-                          {/* Role selector */}
                           <td className="p-3">
                             <select
                               value={u.role}
@@ -213,7 +351,6 @@ export default function AdminPanelModal({
                             </select>
                           </td>
 
-                          {/* Balance & Edit Button */}
                           <td className="p-3">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-emerald-400 number-tabular">
@@ -232,7 +369,6 @@ export default function AdminPanelModal({
                             </div>
                           </td>
 
-                          {/* Status */}
                           <td className="p-3">
                             {isBanned ? (
                               <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded">
@@ -245,7 +381,6 @@ export default function AdminPanelModal({
                             )}
                           </td>
 
-                          {/* KYC Toggle */}
                           <td className="p-3">
                             <button
                               onClick={() => {
@@ -263,7 +398,6 @@ export default function AdminPanelModal({
                             </button>
                           </td>
 
-                          {/* Actions */}
                           <td className="p-3 text-right">
                             <button
                               onClick={() => {
@@ -284,7 +418,6 @@ export default function AdminPanelModal({
                               {isBanned ? 'Mở Khóa' : 'Khóa TK'}
                             </button>
                           </td>
-
                         </tr>
                       );
                     })}

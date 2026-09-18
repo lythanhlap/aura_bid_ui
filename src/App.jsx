@@ -17,7 +17,9 @@ import {
   getStoredAuctions,
   saveStoredAuctions,
   getStoredTransactions,
-  saveStoredTransactions
+  saveStoredTransactions,
+  getStoredBidRequests,
+  saveStoredBidRequests
 } from './mockData';
 
 export default function App() {
@@ -26,6 +28,7 @@ export default function App() {
   const [user, setUser] = useState(getStoredCurrentUser);
   const [auctions, setAuctions] = useState(getStoredAuctions);
   const [transactions, setTransactions] = useState(getStoredTransactions);
+  const [bidRequests, setBidRequests] = useState(getStoredBidRequests);
   const [watchlist, setWatchlist] = useState(['auc-1', 'auc-3']);
 
   // UI Filters State
@@ -48,12 +51,12 @@ export default function App() {
     {
       id: 'welcome-toast',
       title: 'Chào mừng tới AuraBid!',
-      message: 'Sàn đấu giá trực tuyến thời gian thực cao cấp hàng đầu.',
+      message: 'Sàn đấu giá trực tuyến cao cấp • Cơ chế Ủy Quyền Đấu Giá Qua Admin.',
       type: 'info'
     }
   ]);
 
-  // Sync state to LocalStorage
+  // Sync states to LocalStorage
   useEffect(() => {
     saveStoredUsers(users);
   }, [users]);
@@ -69,6 +72,10 @@ export default function App() {
   useEffect(() => {
     saveStoredTransactions(transactions);
   }, [transactions]);
+
+  useEffect(() => {
+    saveStoredBidRequests(bidRequests);
+  }, [bidRequests]);
 
   const addToast = (title, message, type = 'info') => {
     const newToast = { id: `toast-${Date.now()}-${Math.random()}`, title, message, type };
@@ -145,7 +152,7 @@ export default function App() {
     });
   };
 
-  // Place Bid Action
+  // Place Bid Action / Proxy Request
   const handlePlaceBid = (auctionIdInput, amount) => {
     if (!requireAuth(() => {}, 'login')) return;
 
@@ -155,23 +162,57 @@ export default function App() {
     if (!targetAuction) return;
 
     if (user.balance < amount) {
-      addToast('Số Dư Ví Không Đủ!', `Bạn cần ít nhất $${amount.toLocaleString()} để đặt giá. Vui lòng Nạp Tiền thêm.`, 'warning');
+      addToast('Số Dư Ví Không Đủ!', `Bạn cần ít nhất $${amount.toLocaleString()} để đề xuất giá. Vui lòng Nạp Tiền thêm.`, 'warning');
       setIsDepositModalOpen(true);
       return;
     }
 
+    const isAdmin = user.role === 'System Admin';
+
+    if (isAdmin) {
+      // Admin places bid directly under Admin identity
+      executeDirectBid(auctionId, amount, `Admin (${user.name})`, user.avatar);
+      addToast('Admin Đặt Giá Thành Công!', `Đã phát hành lượt đặt giá $${amount.toLocaleString()} trực tiếp.`, 'success');
+    } else {
+      // Normal user: Create a pending Bid Request for Admin to approve
+      const newRequest = {
+        id: `req-${Date.now()}`,
+        auctionId: targetAuction.id,
+        auctionTitle: targetAuction.title,
+        auctionImage: targetAuction.image,
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
+        proposedAmount: amount,
+        currentBidAtRequest: targetAuction.currentBid,
+        status: 'pending',
+        createdAt: new Date().toLocaleString('vi-VN'),
+        note: `Khách hàng ${user.name} ủy quyền Admin trả giá ${targetAuction.title.substring(0, 25)}...`
+      };
+
+      setBidRequests(prev => [newRequest, ...prev]);
+
+      addToast(
+        'ĐÃ GỬI YÊU CẦU CHO ADMIN!',
+        `Yêu cầu đặt giá $${amount.toLocaleString()} đã chuyển đến Admin để phê duyệt và đấu giá đại diện.`,
+        'info'
+      );
+    }
+  };
+
+  // Helper to execute auction bid update directly
+  const executeDirectBid = (auctionId, amount, bidderName, bidderAvatar) => {
     setAuctions(prevAuctions =>
       prevAuctions.map(auc => {
         if (auc.id === auctionId) {
           const newBid = {
             id: `bid-${Date.now()}`,
-            bidder: user.name,
+            bidder: bidderName,
             amount: amount,
             time: 'Vừa xong',
-            avatar: user.avatar
+            avatar: bidderAvatar
           };
 
-          // Anti-sniping rule: extend 30 seconds if < 1 minute left
           let updatedEndTime = auc.endTime;
           if (auc.endTime - Date.now() < 60 * 1000) {
             updatedEndTime += 30 * 1000;
@@ -189,7 +230,6 @@ export default function App() {
       })
     );
 
-    // Update selected auction modal state if open
     if (selectedAuction && selectedAuction.id === auctionId) {
       setSelectedAuction(prev => ({
         ...prev,
@@ -198,30 +238,59 @@ export default function App() {
         bids: [
           {
             id: `bid-${Date.now()}`,
-            bidder: user.name,
+            bidder: bidderName,
             amount: amount,
             time: 'Vừa xong',
-            avatar: user.avatar
+            avatar: bidderAvatar
           },
           ...prev.bids
         ]
       }));
     }
+  };
 
-    // Record Bid Log Transaction
+  // Admin approves a pending bid request
+  const handleApproveBidRequest = (requestId) => {
+    const targetReq = bidRequests.find(r => r.id === requestId);
+    if (!targetReq || targetReq.status !== 'pending') return;
+
+    // Update request status to approved
+    setBidRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'approved' } : r));
+
+    // Execute bid on auction under Admin identity representing user
+    const adminBidderName = `Admin Representative (Ủy quyền bởi ${targetReq.userName})`;
+    const adminAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250";
+
+    executeDirectBid(targetReq.auctionId, targetReq.proposedAmount, adminBidderName, adminAvatar);
+
+    // Record Transaction Log
     const bidTx = {
       id: `tx-${Date.now()}`,
-      userId: user.id,
-      userName: user.name,
+      userId: targetReq.userId,
+      userName: targetReq.userName,
       type: 'bid_hold',
-      amount: amount,
+      amount: targetReq.proposedAmount,
       status: 'completed',
       date: new Date().toLocaleString('vi-VN'),
-      description: `Đặt giá phiên ${targetAuction.title.substring(0, 30)}...`
+      description: `Admin đã duyệt & trả giá $${targetReq.proposedAmount.toLocaleString()} đại diện cho ${targetReq.userName}`
     };
     setTransactions(prev => [bidTx, ...prev]);
 
-    addToast('Đặt Giá Thành Công!', `Bạn đã trả giá thành công $${amount.toLocaleString()}`, 'success');
+    addToast(
+      'PHÊ DUYỆT THÀNH CÔNG!',
+      `Đã phát hành lượt đặt giá $${targetReq.proposedAmount.toLocaleString()} dưới danh tính Admin đại diện cho ${targetReq.userName}`,
+      'success'
+    );
+  };
+
+  // Admin rejects a pending bid request
+  const handleRejectBidRequest = (requestId) => {
+    const targetReq = bidRequests.find(r => r.id === requestId);
+    if (!targetReq || targetReq.status !== 'pending') return;
+
+    setBidRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r));
+
+    addToast('Đã Từ Chối Yêu Cầu', `Yêu cầu trả giá của ${targetReq.userName} đã bị từ chối.`, 'warning');
   };
 
   // Set Auto-Bid Proxy
@@ -295,7 +364,6 @@ export default function App() {
   const handleCreateAuction = (newAuction) => {
     if (!requireAuth(() => {}, 'login')) return;
 
-    // Attach creator seller name if logged in
     const finalAuction = {
       ...newAuction,
       seller: {
@@ -372,8 +440,8 @@ export default function App() {
       const increment = randomTarget.bidIncrement;
       const botAmount = randomTarget.currentBid + increment;
 
-      // Check if current top bidder was user before outbidding
-      const wasUserTop = user && randomTarget.bids[0]?.bidder === user.name;
+      // Check if current top bidder was user
+      const wasUserTop = user && randomTarget.bids[0]?.bidder.includes(user.name);
 
       // Bot Bids
       setAuctions(prev =>
@@ -387,7 +455,6 @@ export default function App() {
               avatar: chosenAvatar
             };
 
-            // Check if user has Auto-Bid enabled and can counter-bid
             let updatedBids = [botBid, ...auc.bids];
             let finalBidAmount = botAmount;
 
@@ -395,7 +462,7 @@ export default function App() {
               const autoCounterAmount = botAmount + increment;
               const userAutoBid = {
                 id: `bid-autobid-${Date.now()}`,
-                bidder: user.name,
+                bidder: `Admin Representative (Ủy quyền bởi ${user.name})`,
                 amount: autoCounterAmount,
                 time: 'Tự động trả giá',
                 avatar: user.avatar
@@ -439,15 +506,12 @@ export default function App() {
 
   // Filtered & Sorted Auctions
   const filteredAuctions = auctions.filter(auc => {
-    // Category match
     if (activeCategory !== 'all' && auc.category !== activeCategory) return false;
-    // Status / Watchlist match
     if (activeStatus === 'watchlist') {
       if (!watchlist.includes(auc.id)) return false;
     } else if (auc.status !== activeStatus) {
       return false;
     }
-    // Search query match
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = auc.title.toLowerCase().includes(q);
@@ -529,7 +593,7 @@ export default function App() {
         <div className="app-container flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <div className="flex items-center gap-2">
             <span className="text-white font-bold font-heading text-sm">AuraBid Luxury Vaults</span>
-            <span>• Verified Real-Time Auction Engine</span>
+            <span>• Verified Real-Time Proxy Auction Engine</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="#terms" className="hover:text-amber-400 transition-colors">Điều khoản đấu giá</a>
@@ -569,6 +633,7 @@ export default function App() {
           auctions={auctions}
           watchlist={watchlist}
           transactions={transactions}
+          bidRequests={bidRequests}
           onOpenDepositModal={() => {
             setIsDashboardModalOpen(false);
             setIsDepositModalOpen(true);
@@ -607,12 +672,15 @@ export default function App() {
           users={users}
           auctions={auctions}
           transactions={transactions}
+          bidRequests={bidRequests}
           onUpdateUserRole={handleAdminUpdateUserRole}
           onUpdateUserBalance={handleAdminUpdateUserBalance}
           onToggleUserStatus={handleAdminToggleUserStatus}
           onToggleUserKyc={handleAdminToggleUserKyc}
           onDeleteAuction={handleAdminDeleteAuction}
           onEndAuctionEarly={handleAdminEndAuctionEarly}
+          onApproveBidRequest={handleApproveBidRequest}
+          onRejectBidRequest={handleRejectBidRequest}
           addToast={addToast}
         />
       )}
