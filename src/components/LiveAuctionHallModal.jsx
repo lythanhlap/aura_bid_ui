@@ -1,8 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { X, ShieldCheck, Flame, Sparkles, Gavel, Volume2, VolumeX, Users, Trophy, Clock, Check, Zap, AlertCircle, TrendingUp, Info, MessageSquare, RotateCw, Eye, Wand2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, ShieldCheck, Flame, Sparkles, Gavel, Volume2, VolumeX, Users, Trophy, Clock, Check, Zap, AlertCircle, TrendingUp, Info, MessageSquare, RotateCw, Eye, Wand2, Video, Camera } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import arenaBg from '../assets/grand_auction_arena_bg.png';
 import virtualCharacterImg from '../assets/virtual_auctioneer_character.png';
+
+// 3D Canvas Floor Particle Light Beam Component
+function VirtualStageCanvas({ emotion, isSpeaking }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    let width = (canvas.width = 340);
+    let height = (canvas.height = 140);
+
+    const particles = Array.from({ length: 40 }).map(() => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 2.5 + 0.8,
+      speedY: Math.random() * 0.9 + 0.3,
+      opacity: Math.random() * 0.8 + 0.2,
+      color: Math.random() > 0.4 ? '#F59E0B' : '#06B6D4'
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw futuristic hologram light cone
+      const grad = ctx.createLinearGradient(0, height, 0, 0);
+      grad.addColorStop(0, 'rgba(245, 158, 11, 0.3)');
+      grad.addColorStop(0.5, 'rgba(6, 182, 212, 0.18)');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(40, height);
+      ctx.lineTo(width - 40, height);
+      ctx.lineTo(width / 2 + 50, 0);
+      ctx.lineTo(width / 2 - 50, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Render floating golden/cyan particles
+      particles.forEach((p) => {
+        p.y -= isSpeaking ? p.speedY * 1.8 : p.speedY;
+        if (p.y < 0) {
+          p.y = height;
+          p.x = Math.random() * width;
+        }
+
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.opacity;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isSpeaking, emotion]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none opacity-85 z-0"
+    />
+  );
+}
 
 export default function LiveAuctionHallModal({
   auction,
@@ -20,7 +90,7 @@ export default function LiveAuctionHallModal({
   const [customBidAmount, setCustomBidAmount] = useState(auction.currentBid + auction.bidIncrement);
   const [activeSideTab, setActiveSideTab] = useState('specs'); // 'specs' | 'bids'
   
-  // Virtual 3D Character Voice, Gestures & Emotion State
+  // Virtual 3D Character Voice, Gestures, Posture & Camera State
   const [auctioneerEmotion, setAuctioneerEmotion] = useState('welcoming'); // 'welcoming' | 'surprised' | 'excited' | 'tenseness' | 'decisive'
   const [auctioneerSpeech, setAuctioneerSpeech] = useState("Kính chào quý vị! Tôi là Nữ Đấu Giá Viên Ảo 3D Aura. Rất vinh hạnh được đồng hành cùng quý nhà sưu tầm.");
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
@@ -29,6 +99,10 @@ export default function LiveAuctionHallModal({
   const [isGavelStriking, setIsGavelStriking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(true);
   const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
+
+  // 3D Perspective Camera Controls & Character Posture Mode
+  const [cameraAngle, setCameraAngle] = useState('front'); // 'front' | 'left3d' | 'right3d' | 'closeUp'
+  const [characterPosture, setCharacterPosture] = useState('dignified'); // 'dignified' | 'excited'
 
   const isAdmin = user && user.role === 'System Admin';
   const pendingRequestsForThisAuction = bidRequests.filter(
@@ -69,6 +143,7 @@ export default function LiveAuctionHallModal({
       if (remaining.seconds <= 30 && remaining.hours === 0 && remaining.minutes === 0 && !remaining.isEnded) {
         if (auctioneerEmotion !== 'tenseness' && auctioneerEmotion !== 'decisive') {
           setAuctioneerEmotion('tenseness');
+          setCharacterPosture('excited');
           const msg = "Thời gian sắp cạn! Bán lần 1... Bán lần 2... Quý vị nào giơ bảng trả giá tiếp theo?";
           setAuctioneerSpeech(`⏱️ ${msg}`);
           speakText(msg);
@@ -97,6 +172,7 @@ export default function LiveAuctionHallModal({
       const isBigBid = topBid.amount > auction.startingBid * 1.5;
 
       setIsPointingToItem(true);
+      setCharacterPosture('excited');
       setTimeout(() => setIsPointingToItem(false), 3000);
 
       if (isBigBid) {
@@ -151,6 +227,64 @@ export default function LiveAuctionHallModal({
 
   const currentEmotionStyle = emotionConfig[auctioneerEmotion] || emotionConfig.welcoming;
 
+  // 3D Perspective Camera Angle Transform Helper
+  const get3DCameraTransform = (angle) => {
+    switch (angle) {
+      case 'left3d':
+        return 'rotateY(20deg) rotateX(4deg) scale(0.98)';
+      case 'right3d':
+        return 'rotateY(-20deg) rotateX(4deg) scale(0.98)';
+      case 'closeUp':
+        return 'scale(1.18) translateY(10px)';
+      case 'front':
+      default:
+        return 'rotateY(0deg) rotateX(0deg) scale(1)';
+    }
+  };
+
+  // Interactive Gesture Trigger Functions
+  const handleTriggerGreeting = () => {
+    setAuctioneerEmotion('welcoming');
+    setCharacterPosture('dignified');
+    setIsSpeaking(true);
+    const msg = "Kính chào toàn thể nhà sưu tầm quý phái! Aura 3D rất sẵn sàng cho các bước giá bùng nổ tiếp theo!";
+    setAuctioneerSpeech(`🙋‍♀️ ${msg}`);
+    speakText(msg);
+    setTimeout(() => setIsSpeaking(false), 4500);
+  };
+
+  const handleTriggerPointLaser = () => {
+    setIsPointingToItem(true);
+    setAuctioneerEmotion('excited');
+    setIsSpeaking(true);
+    const msg = "Hãy chú ý vào tuyệt tác đang trưng bày trên bục Hologram 3D!";
+    setAuctioneerSpeech(`👉 ${msg}`);
+    speakText(msg);
+    setTimeout(() => {
+      setIsPointingToItem(false);
+      setIsSpeaking(false);
+    }, 4000);
+  };
+
+  const handleTriggerGavelStrike = () => {
+    setAuctioneerEmotion('decisive');
+    setIsGavelStriking(true);
+    setIsSpeaking(true);
+    confetti({
+      particleCount: 80,
+      spread: 90,
+      origin: { y: 0.5 },
+      colors: ['#F59E0B', '#10B981', '#06B6D4']
+    });
+    const msg = "Lần 1... Lần 2... Lần 3... ĐÃ BÁN! Tiếng búa nảy vang chốt nhịp phiên đấu giá!";
+    setAuctioneerSpeech(`🔨 ${msg}`);
+    speakText(msg);
+    setTimeout(() => {
+      setIsGavelStriking(false);
+      setIsSpeaking(false);
+    }, 3500);
+  };
+
   // Interactive Question Prompts & Item Inspection
   const handleAskAuctioneer = (questionType) => {
     setIsChatMenuOpen(false);
@@ -199,6 +333,7 @@ export default function LiveAuctionHallModal({
     }
 
     setAuctioneerEmotion('excited');
+    setCharacterPosture('excited');
     setIsSpeaking(true);
     setIsPointingToItem(true);
     const msg = `Xin chúc mừng quý khách ${user?.name || 'Vô danh'} vừa ra giá trực tiếp $${amount.toLocaleString()} thành công!`;
@@ -251,7 +386,7 @@ export default function LiveAuctionHallModal({
       >
         
         {/* GRAND ARENA 3D BACKDROP & LIGHT BEAM OVERLAY */}
-        <div className="relative min-h-[610px] flex flex-col justify-between p-4 sm:p-6 overflow-hidden">
+        <div className="relative min-h-[640px] flex flex-col justify-between p-4 sm:p-6 overflow-hidden">
           
           {/* Background Arena Image */}
           <div
@@ -268,7 +403,7 @@ export default function LiveAuctionHallModal({
 
           {/* POINTER LIGHT BEAM (Connecting Virtual Auctioneer to Item Pedestal when pointing) */}
           {isPointingToItem && (
-            <div className="absolute top-44 left-1/2 -translate-x-1/2 w-2 h-44 pointer-beam-glow rounded-full z-30 pointer-events-none" />
+            <div className="absolute top-64 left-1/2 -translate-x-1/2 w-2.5 h-48 pointer-beam-glow rounded-full z-30 pointer-events-none" />
           )}
 
           {/* TOP HEADER: ARENA STATUS BAR & VOICE TOGGLE */}
@@ -283,10 +418,10 @@ export default function LiveAuctionHallModal({
                     ĐẠI KHÁN PHÒNG MÁI VÒM <span className="text-gradient-gold">AURA ARENA 3D</span>
                   </h3>
                   <span className="badge-live text-[9px] py-0.5 px-2 animate-pulse flex items-center gap-1">
-                    ● VOICE SYNTHESIS 3D
+                    ● FULL 3D AVATAR RIG
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400">Nữ Đấu Giá Viên Ảo 3D • Phát Âm Tiếng Nói & Tương Tác Chỉ Tay Với Vật Phẩm</p>
+                <p className="text-[11px] text-gray-400">Nữ Đấu Giá Viên Ảo 3D Toàn Thân • Phát Âm Tiếng Nói & Cử Chỉ Tương Tác Trực Tiếp</p>
               </div>
             </div>
 
@@ -314,11 +449,11 @@ export default function LiveAuctionHallModal({
             </div>
           </div>
 
-          {/* CENTER STAGE: VIRTUAL 3D CHARACTER HOSTESS WITH ANIMATED RIG & VOICE */}
+          {/* CENTER STAGE: FULL STANDING 3D VIRTUAL FEMALE CHARACTER HOSTESS RIG */}
           <div className="relative z-20 my-2 flex flex-col items-center justify-center text-center space-y-2">
             
             {/* SPEECH BUBBLE & EMOTION BADGE */}
-            <div className="relative flex flex-col items-center group max-w-lg">
+            <div className="relative flex flex-col items-center group max-w-xl z-30">
               
               {/* Dynamic Emotional Expression Badge */}
               <div className="mb-1">
@@ -332,7 +467,7 @@ export default function LiveAuctionHallModal({
                 <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-1 mb-1.5">
                   <span className="font-bold text-amber-400 not-italic text-[10px] uppercase tracking-wider flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-amber-400" />
-                    Virtual 3D Auctioneer Character • Aura Hostess
+                    3D Virtual Auctioneer Character • Aura Hostess
                   </span>
 
                   {/* Interactive Q&A Dropdown Toggle Button */}
@@ -374,44 +509,134 @@ export default function LiveAuctionHallModal({
                   </button>
                 </div>
               )}
+            </div>
 
-              {/* 3D VIRTUAL FEMALE CHARACTER RIG (Using user's visual style, sway, speaking wave & hologram) */}
-              <div className="relative mt-2 cursor-pointer group" onClick={() => handleAskAuctioneer('inspect')}>
-                
-                {/* 3D Swaying Avatar Container */}
-                <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden border-2 shadow-2xl bg-[#101623] relative z-10 transition-all duration-500 animate-avatar-sway animate-hologram-scan ${currentEmotionStyle.ringColor} ${isSpeaking ? 'animate-speaking-pulse' : ''}`}>
-                  <img
-                    src={virtualCharacterImg}
-                    alt="3D Virtual Female Auctioneer Character"
-                    className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform"
-                  />
-                  {/* Hologram Laser Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-cyan-400/20 via-transparent to-amber-400/20 pointer-events-none" />
+            {/* INTERACTIVE 3D CAMERA & GESTURE CONTROL TOOLBAR */}
+            <div className="relative z-30 flex flex-wrap items-center justify-center gap-2 py-1">
+              
+              {/* 3D Perspective Camera Angle Selector */}
+              <div className="flex items-center gap-1 bg-[#101623]/90 border border-amber-500/30 p-1 px-2 rounded-xl shadow-lg">
+                <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                  <Camera className="w-3 h-3 text-amber-400" />
+                  Góc 3D:
+                </span>
+                <button
+                  onClick={() => setCameraAngle('front')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${cameraAngle === 'front' ? 'bg-amber-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                  0° Chính Diện
+                </button>
+                <button
+                  onClick={() => setCameraAngle('left3d')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${cameraAngle === 'left3d' ? 'bg-amber-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Nghiêng Trái 3D
+                </button>
+                <button
+                  onClick={() => setCameraAngle('right3d')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${cameraAngle === 'right3d' ? 'bg-amber-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Nghiêng Phải 3D
+                </button>
+                <button
+                  onClick={() => setCameraAngle('closeUp')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${cameraAngle === 'closeUp' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                  🔍 Cận Cảnh
+                </button>
+              </div>
+
+              {/* Quick Character Motion Gesture Buttons */}
+              <div className="flex items-center gap-1 bg-[#101623]/90 border border-cyan-500/30 p-1 px-2 rounded-xl shadow-lg">
+                <button
+                  onClick={handleTriggerGreeting}
+                  className="px-2.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-bold transition-all flex items-center gap-1"
+                >
+                  🙋‍♀️ Chào Khán Giả
+                </button>
+                <button
+                  onClick={handleTriggerPointLaser}
+                  className="px-2.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[10px] font-bold transition-all flex items-center gap-1"
+                >
+                  👉 Bắn Laser
+                </button>
+                <button
+                  onClick={handleTriggerGavelStrike}
+                  className="px-2.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold transition-all flex items-center gap-1"
+                >
+                  🔨 Gõ Búa
+                </button>
+              </div>
+
+            </div>
+
+            {/* FULL STANDING 3D VIRTUAL CHARACTER RIG WITH 3D PERSPECTIVE TRANSFORM */}
+            <div
+              className="relative my-1 flex flex-col items-center justify-center transition-all duration-700 ease-out z-20 group cursor-pointer"
+              style={{
+                perspective: '1200px',
+                transformStyle: 'preserve-3d',
+                transform: get3DCameraTransform(cameraAngle)
+              }}
+              onClick={handleTriggerGreeting}
+            >
+              {/* Particle Light Beam Stage Canvas */}
+              <VirtualStageCanvas emotion={auctioneerEmotion} isSpeaking={isSpeaking} />
+
+              {/* Audio Equalizer Sound Wave Bar when Speaking */}
+              {isSpeaking && (
+                <div className="absolute -top-4 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-amber-400/60 text-amber-300 text-[10px] font-extrabold shadow-xl z-40 animate-pulse">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  <div className="flex items-end gap-0.5 h-3">
+                    <span className="w-1 bg-amber-400 animate-eq-bar-1 rounded-full" />
+                    <span className="w-1 bg-cyan-400 animate-eq-bar-2 rounded-full" />
+                    <span className="w-1 bg-amber-400 animate-eq-bar-3 rounded-full" />
+                    <span className="w-1 bg-cyan-400 animate-eq-bar-1 rounded-full" />
+                  </div>
+                  <span className="tracking-wide uppercase text-[9px]">Aura 3D Speaking...</span>
+                </div>
+              )}
+
+              {/* Full Standing 3D Character Silhouette Cutout (No Square Box Boundary!) */}
+              <div className={`relative h-60 sm:h-72 w-auto transition-all duration-500 ${characterPosture === 'excited' ? 'animate-posture-excited' : 'animate-posture-dignified'}`}>
+                <img
+                  src={virtualCharacterImg}
+                  alt="3D Virtual Female Auctioneer Character"
+                  className="h-full w-auto object-contain filter drop-shadow-[0_15px_35px_rgba(245,158,11,0.5)] group-hover:scale-105 transition-all duration-300 mask-radial-fade"
+                />
+
+                {/* Holographic Laser Body Scan overlay */}
+                <div className="absolute inset-0 bg-gradient-to-b from-cyan-400/20 via-amber-400/10 to-transparent pointer-events-none animate-hologram-scan rounded-full" />
+
+                {/* Gavel Shockwave Ring overlay when striking */}
+                {isGavelStriking && (
+                  <div className="absolute top-1/3 right-4 w-14 h-14 bg-amber-400/40 rounded-full blur-md animate-ping pointer-events-none" />
+                )}
+              </div>
+
+              {/* Elevated Holographic Floor Ring Podium */}
+              <div className="relative -mt-6 z-10 flex flex-col items-center">
+                {/* Outer Hologram Floor Ring */}
+                <div className="w-64 h-10 rounded-full bg-gradient-to-r from-amber-500/20 via-cyan-400/40 to-amber-500/20 border border-amber-400/60 shadow-[0_0_30px_rgba(245,158,11,0.5)] blur-[1px] animate-pulse flex items-center justify-center">
+                  <div className="w-48 h-6 rounded-full border border-cyan-300/50 animate-spin-slow" />
                 </div>
 
-                {/* Animated Speaking Wave Ring Indicator */}
-                {isSpeaking && (
-                  <div className="absolute inset-0 rounded-3xl border-2 border-amber-400/60 animate-ping pointer-events-none" />
-                )}
-
-                {/* Podium Hologram Glow Circle */}
-                <div className="w-36 h-7 bg-gradient-to-r from-cyan-400/40 via-amber-400/50 to-cyan-400/40 rounded-full blur-md mx-auto -mt-3 relative z-0 animate-pulse" />
+                {/* Master Podium Stand with Crystal Gavel Icon */}
+                <div className="bg-[#0b0f17]/95 backdrop-blur-xl border border-amber-500/60 px-6 py-1 rounded-2xl shadow-2xl -mt-5 relative z-20 flex items-center gap-2 border-t-amber-400">
+                  <Gavel className={`w-4 h-4 text-amber-400 ${isGavelStriking ? 'animate-gavel-strike text-emerald-400' : ''}`} />
+                  <span className="text-xs font-black text-gradient-gold uppercase tracking-widest">
+                    BỤC NỮ HOÀNG ĐẤU GIÁ 3D AURA
+                  </span>
+                </div>
               </div>
 
-              {/* Elevated Master Podium Stand */}
-              <div className="bg-[#0f172a]/90 backdrop-blur-md border border-amber-500/40 px-4 py-1 rounded-xl shadow-lg -mt-2 relative z-20 flex items-center gap-1.5">
-                <Gavel className={`w-3.5 h-3.5 text-amber-400 ${isGavelStriking ? 'animate-gavel-strike text-emerald-400' : ''}`} />
-                <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-widest">
-                  BỤC ĐẤU GIÁ NỮ HOÀNG 3D
-                </span>
-              </div>
             </div>
 
             {/* CENTRAL CIRCULAR PEDESTAL UNDER VERTICAL BEAM */}
-            <div className="relative flex flex-col items-center">
+            <div className="relative flex flex-col items-center pt-1">
               
               {/* Product Showcase Card on Pedestal (Rotates 3D when inspecting) */}
-              <div className={`w-40 h-40 sm:w-48 sm:h-48 rounded-2xl overflow-hidden border-2 border-amber-500/50 shadow-2xl shadow-amber-500/20 bg-[#101623] relative z-10 ${isInspectingItem ? 'animate-item-rotate ring-4 ring-cyan-400' : ''}`}>
+              <div className={`w-36 h-36 sm:w-44 sm:h-44 rounded-2xl overflow-hidden border-2 border-amber-500/50 shadow-2xl shadow-amber-500/20 bg-[#101623] relative z-10 ${isInspectingItem ? 'animate-item-rotate ring-4 ring-cyan-400' : ''}`}>
                 <img
                   src={auction.image}
                   alt={auction.title}
@@ -423,10 +648,10 @@ export default function LiveAuctionHallModal({
               </div>
 
               {/* Circular Pedestal Base */}
-              <div className="w-56 h-6 bg-gradient-to-r from-amber-500/40 via-amber-300/60 to-amber-500/40 rounded-full blur-md mx-auto -mt-3 relative z-0" />
+              <div className="w-52 h-5 bg-gradient-to-r from-amber-500/40 via-amber-300/60 to-amber-500/40 rounded-full blur-md mx-auto -mt-3 relative z-0" />
 
               {/* Price Banner Tag */}
-              <div className="bg-black/80 backdrop-blur-xl px-5 py-2 rounded-2xl border border-amber-500/50 shadow-2xl mt-1 text-center">
+              <div className="bg-black/80 backdrop-blur-xl px-5 py-1.5 rounded-2xl border border-amber-500/50 shadow-2xl mt-1 text-center">
                 <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Giá Trực Tiếp Khán Phòng</span>
                 <span className="text-2xl sm:text-3xl font-black text-amber-400 font-heading number-tabular">
                   ${auction.currentBid.toLocaleString()}
