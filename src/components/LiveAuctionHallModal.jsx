@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShieldCheck, Flame, Sparkles, Gavel, Volume2, VolumeX, Users, Trophy, Clock, Check, Zap, AlertCircle, TrendingUp, Info, MessageSquare, Smile, Frown, Sparkle } from 'lucide-react';
+import { X, ShieldCheck, Flame, Sparkles, Gavel, Volume2, VolumeX, Users, Trophy, Clock, Check, Zap, AlertCircle, TrendingUp, Info, MessageSquare, Smile, Frown, Sparkle, Activity } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import arenaBg from '../assets/grand_auction_arena_bg.png';
 
@@ -10,6 +10,7 @@ export default function LiveAuctionHallModal({
   users = [],
   bidRequests = [],
   onPlaceBid,
+  onDirectLiveRoomBid,
   onApproveBidRequest,
   onRejectBidRequest,
   addToast
@@ -22,6 +23,7 @@ export default function LiveAuctionHallModal({
   const [auctioneerEmotion, setAuctioneerEmotion] = useState('welcoming'); // 'welcoming' | 'surprised' | 'excited' | 'tenseness' | 'decisive'
   const [auctioneerSpeech, setAuctioneerSpeech] = useState("Kính chào quý nhà sưu tầm! Tôi là Harrison - Đấu giá viên ảo 3D trực tiếp điều hành phiên đấu giá này.");
   const [isGavelStriking, setIsGavelStriking] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(true);
   const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
 
   const isAdmin = user && user.role === 'System Admin';
@@ -42,6 +44,7 @@ export default function LiveAuctionHallModal({
         if (auctioneerEmotion !== 'tenseness' && auctioneerEmotion !== 'decisive') {
           setAuctioneerEmotion('tenseness');
           setAuctioneerSpeech("⏱️ THỜI GIAN SẮP CẠN! Bán lần 1... Bán lần 2... Quý vị nào giơ bảng trả giá tiếp theo?");
+          setIsSpeaking(true);
         }
       }
     }, 1000);
@@ -72,6 +75,8 @@ export default function LiveAuctionHallModal({
         setAuctioneerEmotion('excited');
         setAuctioneerSpeech(`🔥 Hào hứng quá! Đã ghi nhận mức giá $${topBid.amount.toLocaleString()} từ ${topBid.bidder}! Quý vị nào nâng giá tiếp?`);
       }
+      setIsSpeaking(true);
+      setTimeout(() => setIsSpeaking(false), 4000);
     }
   }, [auction.bids, auction.startingBid]);
 
@@ -85,25 +90,25 @@ export default function LiveAuctionHallModal({
     },
     surprised: {
       label: "😮 NGẠC NHIÊN ĐỘT BIẾN",
-      ringColor: "ring-purple-400 shadow-purple-500/60 border-purple-400 scale-105",
+      ringColor: "ring-purple-400 shadow-purple-500/60 border-purple-400",
       textColor: "text-purple-300",
       bgBadge: "bg-purple-500/20 text-purple-300 border-purple-500/40"
     },
     excited: {
       label: "🔥 HÀO HỨNG SÔI NỔI",
-      ringColor: "ring-amber-400 shadow-amber-500/60 border-amber-400 scale-105",
+      ringColor: "ring-amber-400 shadow-amber-500/60 border-amber-400",
       textColor: "text-amber-300",
       bgBadge: "bg-amber-500/20 text-amber-300 border-amber-500/40"
     },
     tenseness: {
       label: "⏳ DỒN DẬP ĐẾM NGƯỢC",
-      ringColor: "ring-rose-500 shadow-rose-500/70 border-rose-500 animate-pulse scale-105",
+      ringColor: "ring-rose-500 shadow-rose-500/70 border-rose-500",
       textColor: "text-rose-300",
       bgBadge: "bg-rose-500/20 text-rose-300 border-rose-500/40"
     },
     decisive: {
       label: "🔨 QUYẾT ĐOÁN GÕ BÚA",
-      ringColor: "ring-emerald-400 shadow-emerald-500/70 border-emerald-400 scale-110",
+      ringColor: "ring-emerald-400 shadow-emerald-500/70 border-emerald-400",
       textColor: "text-emerald-300",
       bgBadge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
     }
@@ -114,6 +119,7 @@ export default function LiveAuctionHallModal({
   // Interactive Question Prompts for Virtual Auctioneer Q&A
   const handleAskAuctioneer = (questionType) => {
     setIsChatMenuOpen(false);
+    setIsSpeaking(true);
 
     if (questionType === 'appraise') {
       setAuctioneerEmotion('excited');
@@ -124,24 +130,44 @@ export default function LiveAuctionHallModal({
       setAuctioneerSpeech(`📊 Theo dữ liệu sàn AuraBid, tôi dự đoán phiên này có thể cán mốc $${targetEstimate.toLocaleString()}!`);
     } else if (questionType === 'deposit') {
       setAuctioneerEmotion('welcoming');
-      setAuctioneerSpeech(`🛡️ Quý vị chỉ cần đảm bảo số dư ví khả dụng đủ $${customBidAmount.toLocaleString()} để gửi yêu cầu nâng giá.`);
+      setAuctioneerSpeech(`🛡️ Quý vị đặt giá trực tiếp trong phòng này sẽ cập nhật ngay lập tức lên sàn thời gian thực!`);
     }
+
+    setTimeout(() => setIsSpeaking(false), 5000);
   };
 
-  const handleUserSubmitRequest = (amount) => {
+  // Direct Real-Time Live Room Bidding (Nâng giá trực tiếp công khai tức thì trong phòng 3D)
+  const handleDirectLiveRoomBidSubmit = (amount) => {
     if (amount <= auction.currentBid) {
-      addToast('Mức Giá Không Hợp Lệ', `Mức đề xuất phải tối thiểu cao hơn $${auction.currentBid.toLocaleString()}`, 'warning');
+      addToast('Mức Giá Không Hợp Lệ', `Mức trả giá trực tiếp phải tối thiểu cao hơn $${auction.currentBid.toLocaleString()}`, 'warning');
       return;
     }
-    onPlaceBid(auction.id, amount);
+
+    if (onDirectLiveRoomBid) {
+      onDirectLiveRoomBid(auction.id, amount);
+    } else {
+      onPlaceBid(auction.id, amount);
+    }
+
     setAuctioneerEmotion('excited');
-    setAuctioneerSpeech(`Quý khách ${user.name} vừa đề xuất bước giá $${amount.toLocaleString()}! Đang chuyển bục Admin kiểm định...`);
+    setIsSpeaking(true);
+    setAuctioneerSpeech(`🎉 XIN CHÚC MỪNG! Quý khách ${user?.name || 'Vô danh'} vừa đặt giá trực tiếp $${amount.toLocaleString()} thành công!`);
+
+    confetti({
+      particleCount: 60,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#F59E0B', '#10B981', '#6366F1']
+    });
+
+    setTimeout(() => setIsSpeaking(false), 4000);
   };
 
   const handleAdminApproveAndStrikeGavel = (requestId) => {
     onApproveBidRequest(requestId);
     setAuctioneerEmotion('decisive');
     setIsGavelStriking(true);
+    setIsSpeaking(true);
 
     confetti({
       particleCount: 90,
@@ -150,8 +176,11 @@ export default function LiveAuctionHallModal({
       colors: ['#10B981', '#F59E0B', '#3B82F6', '#EC4899']
     });
 
-    setAuctioneerSpeech(`🔨 BÁN! ĐÃ GÕ BÚA CHẤP NHẬN! Lượt đặt giá mới chính thức có hiệu lực trên toàn sàn!`);
-    setTimeout(() => setIsGavelStriking(false), 1200);
+    setAuctioneerSpeech(`🔨 BÁN! ĐÃ GÕ BÚA CHẤP NHẬN! Lượt đặt giá mới chính thức phát hành trên sàn!`);
+    setTimeout(() => {
+      setIsGavelStriking(false);
+      setIsSpeaking(false);
+    }, 2000);
   };
 
   return (
@@ -188,11 +217,12 @@ export default function LiveAuctionHallModal({
                   <h3 className="text-sm sm:text-base font-black text-white font-heading tracking-wide">
                     ĐẠI KHÁN PHÒNG MÁI VÒM <span className="text-gradient-gold">AURA ARENA 3D</span>
                   </h3>
-                  <span className="badge-live text-[9px] py-0.5 px-2 animate-pulse">
-                    ● TRỰC TIẾP SPECTATOR POV
+                  <span className="badge-live text-[9px] py-0.5 px-2 animate-pulse flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-emerald-400" />
+                    DIRECT LIVE BIDDING
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400">Góc nhìn người tham gia khán phòng • Đấu Giá Viên AI Tương Tác Sống Động</p>
+                <p className="text-[11px] text-gray-400">Góc nhìn SPECTATOR POV • Nhân Viên Đấu Giá AI Chuyển Động 3D Sinh Động</p>
               </div>
             </div>
 
@@ -211,7 +241,7 @@ export default function LiveAuctionHallModal({
             </div>
           </div>
 
-          {/* CENTER STAGE: VIRTUAL AI AUCTIONEER CHARACTER WITH EMOTIONS & SENSES */}
+          {/* CENTER STAGE: ANIMATED VIRTUAL AI AUCTIONEER CHARACTER WITH MOTION & EMOTIONS */}
           <div className="relative z-20 my-3 flex flex-col items-center justify-center text-center space-y-3">
             
             {/* VIRTUAL CHARACTER SPEECH BUBBLE & EMOTION STATUS */}
@@ -227,8 +257,9 @@ export default function LiveAuctionHallModal({
               {/* Speech Bubble */}
               <div className="bg-[#101623]/95 backdrop-blur-md border border-amber-500/40 p-3 px-5 rounded-2xl shadow-2xl relative text-xs text-amber-200 font-medium italic leading-relaxed animate-fade-in">
                 <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-1 mb-1.5">
-                  <span className="font-bold text-amber-400 not-italic text-[10px] uppercase tracking-wider">
-                    Virtual AI Auctioneer • Harrison 3D
+                  <span className="font-bold text-amber-400 not-italic text-[10px] uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    Animated Virtual AI Auctioneer • Harrison 3D
                   </span>
 
                   {/* Interactive Q&A Dropdown Toggle Button */}
@@ -249,7 +280,7 @@ export default function LiveAuctionHallModal({
               {/* Interactive Q&A Menu */}
               {isChatMenuOpen && (
                 <div className="absolute top-full mt-2 z-50 bg-[#0b0f17] border border-cyan-500/40 rounded-2xl p-2 shadow-2xl space-y-1.5 w-64 text-left">
-                  <p className="text-[10px] text-gray-400 font-bold px-2">Chọn câu hỏi để tương tác cùng Đấu giá viên:</p>
+                  <p className="text-[10px] text-gray-400 font-bold px-2">Chọn câu hỏi tương tác với Đấu giá viên 3D:</p>
                   <button
                     onClick={() => handleAskAuctioneer('appraise')}
                     className="w-full text-[11px] text-gray-200 hover:text-amber-300 hover:bg-white/10 p-2 rounded-xl text-left font-medium transition-colors"
@@ -266,28 +297,37 @@ export default function LiveAuctionHallModal({
                     onClick={() => handleAskAuctioneer('deposit')}
                     className="w-full text-[11px] text-gray-200 hover:text-amber-300 hover:bg-white/10 p-2 rounded-xl text-left font-medium transition-colors"
                   >
-                    🛡️ Cần chuẩn bị số dư bao nhiêu để trả giá?
+                    🛡️ Cơ chế đặt giá trực tiếp trong phòng 3D?
                   </button>
                 </div>
               )}
 
-              {/* Virtual Character Avatar with Emotional Glow Ring */}
-              <div className="relative mt-3 cursor-pointer" onClick={() => handleAskAuctioneer('appraise')}>
-                <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 shadow-2xl bg-[#101623] relative z-10 transition-all duration-500 ${currentEmotionStyle.ringColor}`}>
+              {/* 3D ANIMATED VIRTUAL CHARACTER RIG (Body Sway, Speaking Waves, Hologram Laser Scan) */}
+              <div className="relative mt-3 cursor-pointer group" onClick={() => handleAskAuctioneer('appraise')}>
+                
+                {/* 3D Swaying Avatar Container */}
+                <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 shadow-2xl bg-[#101623] relative z-10 transition-all duration-500 animate-avatar-sway animate-hologram-scan ${currentEmotionStyle.ringColor} ${isSpeaking ? 'animate-speaking-pulse' : ''}`}>
                   <img
                     src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=250"
-                    alt="Virtual Auctioneer Character"
-                    className="w-full h-full object-cover"
+                    alt="Animated Virtual Character Avatar"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                   />
+                  {/* Hologram Laser Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-cyan-400/20 via-transparent to-amber-400/20 pointer-events-none" />
                 </div>
 
+                {/* Animated Speaking Wave Ring Indicator */}
+                {isSpeaking && (
+                  <div className="absolute inset-0 rounded-full border-2 border-amber-400/60 animate-ping pointer-events-none" />
+                )}
+
                 {/* Podium Hologram Glow Circle */}
-                <div className="w-28 h-6 bg-amber-400/30 rounded-full blur-md mx-auto -mt-3 relative z-0 animate-pulse" />
+                <div className="w-32 h-7 bg-gradient-to-r from-cyan-400/40 via-amber-400/50 to-cyan-400/40 rounded-full blur-md mx-auto -mt-3 relative z-0 animate-pulse" />
               </div>
 
               {/* Elevated Master Podium Stand */}
               <div className="bg-[#0f172a]/90 backdrop-blur-md border border-amber-500/40 px-4 py-1 rounded-xl shadow-lg -mt-2 relative z-20 flex items-center gap-1.5">
-                <Gavel className={`w-3.5 h-3.5 text-amber-400 ${isGavelStriking ? 'rotate-45 transition-transform' : ''}`} />
+                <Gavel className={`w-4 h-4 text-amber-400 ${isGavelStriking ? 'animate-gavel-strike text-emerald-400' : ''}`} />
                 <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-widest">
                   BỤC ĐẤU GIÁ TRUNG TÂM
                 </span>
@@ -314,7 +354,7 @@ export default function LiveAuctionHallModal({
 
               {/* Price Banner Tag */}
               <div className="bg-black/80 backdrop-blur-xl px-6 py-2 rounded-2xl border border-amber-500/50 shadow-2xl mt-1.5 text-center">
-                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Giá Cao Nhất Khán Phòng</span>
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Giá Trực Tiếp Khán Phòng</span>
                 <span className="text-2xl sm:text-3xl font-black text-amber-400 font-heading number-tabular">
                   ${auction.currentBid.toLocaleString()}
                 </span>
@@ -385,7 +425,7 @@ export default function LiveAuctionHallModal({
               )}
             </div>
 
-            {/* PARTICIPANT BIDDING CONTROLS (Col 6) */}
+            {/* PARTICIPANT DIRECT LIVE BIDDING CONSOLE (Col 6) */}
             <div className="lg:col-span-6 bg-[#0b0f17]/90 backdrop-blur-xl p-4 rounded-2xl border border-white/10 space-y-3">
               
               {isAdmin ? (
@@ -432,13 +472,14 @@ export default function LiveAuctionHallModal({
                   )}
                 </div>
               ) : (
-                /* NORMAL USER PARTICIPANT CONSOLE */
+                /* NORMAL USER DIRECT LIVE BIDDING CONSOLE IN 3D ROOM */
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-300 block">
-                      Điều Khiển Trả Giá (Gửi Yêu Cầu Cho Admin):
+                    <label className="text-xs font-bold text-white block flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                      Đặt Giá Trực Tiếp Sàn Khán Phòng 3D:
                     </label>
-                    <span className="text-[10px] text-amber-400 font-semibold">Bước giá +${auction.bidIncrement.toLocaleString()}</span>
+                    <span className="text-[10px] text-emerald-400 font-semibold">Cập nhật công khai ngay</span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
@@ -449,8 +490,8 @@ export default function LiveAuctionHallModal({
                     ].map((val, idx) => (
                       <button
                         key={idx}
-                        onClick={() => handleUserSubmitRequest(val)}
-                        className="btn-secondary py-2 text-xs font-bold text-amber-300 hover:border-amber-400"
+                        onClick={() => handleDirectLiveRoomBidSubmit(val)}
+                        className="btn-secondary py-2 text-xs font-bold text-amber-300 hover:border-amber-400 hover:bg-amber-500/10"
                       >
                         +${val.toLocaleString()}
                       </button>
@@ -466,15 +507,15 @@ export default function LiveAuctionHallModal({
                         onChange={(e) => setCustomBidAmount(Number(e.target.value))}
                         min={auction.currentBid + auction.bidIncrement}
                         step={auction.bidIncrement}
-                        className="w-full bg-[#101623] border border-white/10 rounded-xl pl-7 pr-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-amber-400"
+                        className="w-full bg-[#101623] border border-amber-500/30 rounded-xl pl-7 pr-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-amber-400"
                       />
                     </div>
                     <button
-                      onClick={() => handleUserSubmitRequest(customBidAmount)}
-                      className="btn-primary py-2 px-5 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+                      onClick={() => handleDirectLiveRoomBidSubmit(customBidAmount)}
+                      className="btn-primary py-2 px-5 text-xs font-bold shadow-lg shadow-amber-500/30 flex items-center gap-1.5"
                     >
                       <Zap className="w-3.5 h-3.5 fill-slate-950" />
-                      <span>Gửi Yêu Cầu Cho Admin</span>
+                      <span>⚡ Đặt Giá Trực Tiếp $</span>
                     </button>
                   </div>
                 </div>

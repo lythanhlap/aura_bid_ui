@@ -156,7 +156,7 @@ export default function App() {
     });
   };
 
-  // Place Bid Action / Proxy Request
+  // Place Bid Action / Proxy Request Outside Room
   const handlePlaceBid = (auctionIdInput, amount) => {
     if (!requireAuth(() => {}, 'login')) return;
 
@@ -174,11 +174,9 @@ export default function App() {
     const isAdmin = user.role === 'System Admin';
 
     if (isAdmin) {
-      // Admin places bid directly under Admin identity
       executeDirectBid(auctionId, amount, `Admin (${user.name})`, user.avatar);
-      addToast('Admin Đặt Giá Thành Công!', `Đã phát hành lượt đặt giá $${amount.toLocaleString()} trực tiếp trên khán phòng.`, 'success');
+      addToast('Admin Đặt Giá Thành Công!', `Đã phát hành lượt đặt giá $${amount.toLocaleString()} trực tiếp.`, 'success');
     } else {
-      // Normal user: Create a pending Bid Request for Admin to approve (NOT displayed publicly until approved)
       const newRequest = {
         id: `req-${Date.now()}`,
         auctionId: targetAuction.id,
@@ -202,6 +200,33 @@ export default function App() {
         'info'
       );
     }
+  };
+
+  // Direct Real-Time Bidding Inside 3D Live Room (Đặt Giá Trực Tiếp Tức Thì)
+  const handleDirectLiveRoomBid = (auctionId, amount) => {
+    if (!requireAuth(() => {}, 'login')) return;
+
+    if (user.balance < amount) {
+      addToast('Số Dư Ví Không Đủ!', `Bạn cần ít nhất $${amount.toLocaleString()} để đặt giá trực tiếp. Vui lòng Nạp Tiền thêm.`, 'warning');
+      setIsDepositModalOpen(true);
+      return;
+    }
+
+    executeDirectBid(auctionId, amount, user.name, user.avatar);
+
+    const bidTx = {
+      id: `tx-${Date.now()}`,
+      userId: user.id,
+      userName: user.name,
+      type: 'bid_hold',
+      amount: amount,
+      status: 'completed',
+      date: new Date().toLocaleString('vi-VN'),
+      description: `Đặt giá trực tiếp trên Khán Phòng 3D Aura Arena`
+    };
+    setTransactions(prev => [bidTx, ...prev]);
+
+    addToast('ĐẶT GIÁ TRỰC TIẾP THÀNH CÔNG!', `Bạn đã ra giá thành công $${amount.toLocaleString()} trên sàn khán phòng!`, 'success');
   };
 
   // Helper to execute auction bid update directly
@@ -649,6 +674,7 @@ export default function App() {
           users={users}
           bidRequests={bidRequests}
           onPlaceBid={handlePlaceBid}
+          onDirectLiveRoomBid={handleDirectLiveRoomBid}
           onApproveBidRequest={handleApproveBidRequest}
           onRejectBidRequest={handleRejectBidRequest}
           addToast={addToast}
